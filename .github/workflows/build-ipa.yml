@@ -1,0 +1,48 @@
+# Builds the unsigned generic TolkaraDiagnostics .ipa (External JIT) and keeps it as a
+# workflow artifact only: nothing is published as a release.
+name: Unsigned IPA (artifact)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/relaxed-dijkstra-12mx9i"
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    name: Unsigned .ipa
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the unsigned .ipa
+        # Nothing exported from the runner's macOS goes in.
+        run: TOLKARA_SYSTEM_ROOTS=NO wolkaraforever/tools/package_ipa.sh "$PWD/Tolkara-unsigned.ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tolkara-unsigned-ipa
+          path: Tolkara-unsigned.ipa
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Keep the build log if it failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            logs/
+            build/platform/logs/
+          retention-days: 7
+          if-no-files-found: ignore
